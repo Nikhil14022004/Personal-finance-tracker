@@ -9,9 +9,9 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaymentMethod, Transaction, TransactionType } from '../types';
 import { useFinance } from '../context/FinanceContext';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, PAYMENT_METHODS } from '../constants/categories';
@@ -29,7 +29,8 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
   initialTransaction,
 }) => {
   const { colors, currency, addTransaction, updateTransaction } = useFinance();
-  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const isMobile = width < 500;
 
   const [type, setType] = useState<TransactionType>('expense');
   const [amount, setAmount] = useState<string>('');
@@ -131,10 +132,13 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
   };
 
   return (
-    <Modal visible={visible} animationType="fade" transparent={true} onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.overlay}
+        style={[
+          styles.overlay,
+          isMobile ? styles.overlayMobile : styles.overlayDesktop,
+        ]}
       >
         <View
           style={[
@@ -143,11 +147,12 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
               backgroundColor: colors.surface,
               borderColor: colors.cardBorder,
             },
+            isMobile ? styles.modalCardMobile : styles.modalCardDesktop,
           ]}
         >
-          {/* 1. FIXED HEADER */}
+          {/* Header */}
           <View style={[styles.modalHeader, { borderBottomColor: colors.cardBorder }]}>
-            <View>
+            <View style={styles.headerTextCol}>
               <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
                 {initialTransaction ? 'Edit Transaction' : 'Add Transaction'}
               </Text>
@@ -164,7 +169,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
             </TouchableOpacity>
           </View>
 
-          {/* 2. SCROLLABLE FORM CONTENT */}
+          {/* Form Body */}
           <ScrollView
             style={styles.scrollArea}
             contentContainerStyle={styles.scrollContent}
@@ -265,10 +270,19 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
               </View>
             </View>
 
-            {/* Category Selector (Responsive Wrap Grid) */}
+            {/* Category Selector (Horizontal Scrolling Row) */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Category</Text>
-              <View style={styles.categoryGrid}>
+              <View style={styles.labelRow}>
+                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Category</Text>
+                <Text style={[styles.selectedCategoryHint, { color: colors.info }]}>
+                  {category}
+                </Text>
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.categoryScroll}
+              >
                 {availableCategories.map((cat) => {
                   const isSelected = category === cat.name;
                   return (
@@ -300,7 +314,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                     </TouchableOpacity>
                   );
                 })}
-              </View>
+              </ScrollView>
             </View>
 
             {/* Date Input */}
@@ -407,7 +421,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
             </View>
           </ScrollView>
 
-          {/* 3. FIXED BOTTOM ACTION BAR (STICKY, NEVER CUT OFF) */}
+          {/* Fixed Bottom Save Button */}
           <View
             style={[
               styles.modalFooter,
@@ -441,16 +455,18 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.65)',
+  },
+  overlayMobile: {
+    justifyContent: 'flex-end',
+    padding: 0,
+  },
+  overlayDesktop: {
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 16,
+    padding: 20,
   },
   modalCard: {
     width: '100%',
-    maxWidth: 480,
-    borderRadius: 24,
-    borderWidth: StyleSheet.hairlineWidth,
-    maxHeight: '88%',
     flexDirection: 'column',
     overflow: 'hidden',
     shadowColor: '#000',
@@ -458,6 +474,19 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 24,
     elevation: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  modalCardMobile: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    maxHeight: '92%',
+  },
+  modalCardDesktop: {
+    maxWidth: 480,
+    borderRadius: 24,
+    maxHeight: '88%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -466,6 +495,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  headerTextCol: {
+    flex: 1,
+    marginRight: 10,
   },
   modalTitle: {
     fontSize: 18,
@@ -488,10 +521,10 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     paddingTop: 16,
-    paddingBottom: 24,
-    gap: 16,
+    paddingBottom: 20,
+    gap: 14,
   },
   alertBox: {
     flexDirection: 'row',
@@ -544,6 +577,10 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
+  selectedCategoryHint: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
   quickDateRow: {
     flexDirection: 'row',
     gap: 6,
@@ -563,7 +600,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     paddingHorizontal: 16,
-    height: 54,
+    height: 52,
   },
   currencyPrefix: {
     fontSize: 22,
@@ -576,10 +613,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     height: '100%',
   },
-  categoryGrid: {
+  categoryScroll: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
+    paddingVertical: 2,
   },
   categoryChip: {
     flexDirection: 'row',
@@ -614,7 +651,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   paymentChip: {
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1,
@@ -624,7 +661,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   modalFooter: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     paddingTop: 12,
     paddingBottom: 16,
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -633,7 +670,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 50,
+    height: 48,
     borderRadius: 14,
     gap: 8,
     shadowColor: '#000',
