@@ -1,6 +1,6 @@
 import React from 'react';
-import { StyleSheet, Platform } from 'react-native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { createBottomTabNavigator, BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,65 +19,98 @@ export type RootTabParamList = {
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
-export const AppNavigator: React.FC = () => {
-  const { colors, theme } = useFinance();
+const CustomTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigation }) => {
+  const { colors } = useFinance();
   const insets = useSafeAreaInsets();
-
-  const navigationTheme = theme === 'dark' ? DarkTheme : DefaultTheme;
   const isIOS = Platform.OS === 'ios';
+
+  return (
+    <View
+      style={[
+        styles.customTabBar,
+        {
+          backgroundColor: colors.tabBarBackground,
+          borderTopColor: colors.tabBarBorder,
+          height: isIOS ? 58 + insets.bottom : 64,
+          paddingBottom: isIOS ? Math.max(insets.bottom, 10) : 6,
+        },
+      ]}
+    >
+      {state.routes.map((route, index) => {
+        const { options } = descriptors[route.key];
+        const isFocused = state.index === index;
+
+        const label =
+          options.tabBarLabel !== undefined
+            ? options.tabBarLabel
+            : options.title !== undefined
+            ? options.title
+            : route.name;
+
+        const onPress = () => {
+          const event = navigation.emit({
+            type: 'tabPress',
+            target: route.key,
+            canPreventDefault: true,
+          });
+
+          if (!isFocused && !event.defaultPrevented) {
+            navigation.navigate(route.name);
+          }
+        };
+
+        let iconName: keyof typeof Ionicons.glyphMap;
+        if (route.name === 'Home') {
+          iconName = isFocused ? 'home' : 'home-outline';
+        } else if (route.name === 'Transactions') {
+          iconName = isFocused ? 'receipt' : 'receipt-outline';
+        } else if (route.name === 'Statistics') {
+          iconName = isFocused ? 'pie-chart' : 'pie-chart-outline';
+        } else {
+          iconName = isFocused ? 'settings' : 'settings-outline';
+        }
+
+        const tintColor = isFocused ? colors.tabBarActive : colors.tabBarInactive;
+
+        return (
+          <TouchableOpacity
+            key={route.key}
+            accessibilityRole="tab"
+            accessibilityState={isFocused ? { selected: true } : {}}
+            accessibilityLabel={options.tabBarAccessibilityLabel}
+            onPress={onPress}
+            style={styles.tabItem}
+            activeOpacity={0.7}
+          >
+            <Ionicons name={iconName} size={22} color={tintColor} />
+            <Text
+              style={[
+                styles.tabLabel,
+                {
+                  color: tintColor,
+                  fontWeight: isFocused ? '700' : '500',
+                },
+              ]}
+              numberOfLines={1}
+            >
+              {typeof label === 'string' ? label : route.name}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+};
+
+export const AppNavigator: React.FC = () => {
+  const { theme } = useFinance();
+  const navigationTheme = theme === 'dark' ? DarkTheme : DefaultTheme;
 
   return (
     <NavigationContainer theme={navigationTheme}>
       <Tab.Navigator
-        screenOptions={({ route }) => ({
-          headerShown: false,
-          tabBarActiveTintColor: colors.tabBarActive,
-          tabBarInactiveTintColor: colors.tabBarInactive,
-          tabBarStyle: {
-            backgroundColor: colors.tabBarBackground,
-            borderTopColor: colors.tabBarBorder,
-            borderTopWidth: 1,
-            height: isIOS ? 60 + insets.bottom : 70,
-            paddingTop: 8,
-            paddingBottom: isIOS ? Math.max(insets.bottom, 12) : 10,
-            elevation: 8,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: -2 },
-            shadowOpacity: 0.05,
-            shadowRadius: 6,
-          },
-          tabBarItemStyle: {
-            justifyContent: 'center',
-            alignItems: 'center',
-            paddingVertical: 2,
-          },
-          tabBarLabelStyle: {
-            fontSize: 11,
-            fontWeight: '600',
-            lineHeight: 14,
-            marginTop: 2,
-            marginBottom: 0,
-          },
-          tabBarIconStyle: {
-            marginTop: 2,
-            marginBottom: 0,
-          },
-          tabBarIcon: ({ focused, color }) => {
-            let iconName: keyof typeof Ionicons.glyphMap;
-
-            if (route.name === 'Home') {
-              iconName = focused ? 'home' : 'home-outline';
-            } else if (route.name === 'Transactions') {
-              iconName = focused ? 'receipt' : 'receipt-outline';
-            } else if (route.name === 'Statistics') {
-              iconName = focused ? 'pie-chart' : 'pie-chart-outline';
-            } else {
-              iconName = focused ? 'settings' : 'settings-outline';
-            }
-
-            return <Ionicons name={iconName} size={22} color={color} />;
-          },
-        })}
+        tabBar={(props) => <CustomTabBar {...props} />}
+        screenOptions={{ headerShown: false }}
       >
         <Tab.Screen name="Home" component={HomeScreen} />
         <Tab.Screen name="Transactions" component={TransactionsScreen} />
@@ -87,3 +120,28 @@ export const AppNavigator: React.FC = () => {
     </NavigationContainer>
   );
 };
+
+const styles = StyleSheet.create({
+  customTabBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 4,
+  },
+  tabLabel: {
+    fontSize: 11,
+    marginTop: 3,
+    textAlign: 'center',
+  },
+});
