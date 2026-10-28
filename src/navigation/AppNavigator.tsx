@@ -1,8 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { createBottomTabNavigator, BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFinance } from '../context/FinanceContext';
 import { HomeScreen } from '../screens/HomeScreen';
@@ -21,8 +20,6 @@ const Tab = createBottomTabNavigator<RootTabParamList>();
 
 const CustomTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigation }) => {
   const { colors } = useFinance();
-  const insets = useSafeAreaInsets();
-  const isIOS = Platform.OS === 'ios';
 
   return (
     <View
@@ -31,8 +28,6 @@ const CustomTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigat
         {
           backgroundColor: colors.tabBarBackground,
           borderTopColor: colors.tabBarBorder,
-          height: isIOS ? 58 + insets.bottom : 64,
-          paddingBottom: isIOS ? Math.max(insets.bottom, 10) : 6,
         },
       ]}
     >
@@ -82,7 +77,9 @@ const CustomTabBar: React.FC<BottomTabBarProps> = ({ state, descriptors, navigat
             style={styles.tabItem}
             activeOpacity={0.7}
           >
-            <Ionicons name={iconName} size={22} color={tintColor} />
+            <View style={styles.iconContainer}>
+              <Ionicons name={iconName} size={22} color={tintColor} />
+            </View>
             <Text
               style={[
                 styles.tabLabel,
@@ -127,6 +124,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-around',
     borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: 10,
+    paddingBottom: 16,
+    minHeight: 74,
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
@@ -137,11 +137,17 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 4,
+  },
+  iconContainer: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tabLabel: {
-    fontSize: 11,
-    marginTop: 3,
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: 4,
     textAlign: 'center',
   },
 });

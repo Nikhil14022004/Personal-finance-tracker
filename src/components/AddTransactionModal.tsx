@@ -130,19 +130,11 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
     }
   };
 
-  const isWeb = Platform.OS === 'web';
-
   return (
-    <Modal visible={visible} animationType={isWeb ? 'fade' : 'slide'} transparent={true} onRequestClose={onClose}>
+    <Modal visible={visible} animationType="fade" transparent={true} onRequestClose={onClose}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={[
-          styles.overlay,
-          {
-            justifyContent: isWeb ? 'center' : 'flex-end',
-            padding: isWeb ? 16 : 0,
-          },
-        ]}
+        style={styles.overlay}
       >
         <View
           style={[
@@ -150,8 +142,6 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
             {
               backgroundColor: colors.surface,
               borderColor: colors.cardBorder,
-              borderBottomLeftRadius: isWeb ? 24 : 0,
-              borderBottomRightRadius: isWeb ? 24 : 0,
             },
           ]}
         >
@@ -270,7 +260,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                     setAmount(val);
                     if (errorMessage) setErrorMessage('');
                   }}
-                  autoFocus={!initialTransaction && !isWeb}
+                  autoFocus={!initialTransaction}
                 />
               </View>
             </View>
@@ -424,7 +414,6 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
               {
                 backgroundColor: colors.surface,
                 borderTopColor: colors.cardBorder,
-                paddingBottom: Platform.OS === 'ios' ? Math.max(insets.bottom, 16) : 16,
               },
             ]}
           >
@@ -452,15 +441,16 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    justifyContent: 'center',
     alignItems: 'center',
+    padding: 16,
   },
   modalCard: {
     width: '100%',
     maxWidth: 480,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderRadius: 24,
     borderWidth: StyleSheet.hairlineWidth,
-    maxHeight: '90%',
+    maxHeight: '88%',
     flexDirection: 'column',
     overflow: 'hidden',
     shadowColor: '#000',
@@ -636,6 +626,7 @@ const styles = StyleSheet.create({
   modalFooter: {
     paddingHorizontal: 20,
     paddingTop: 12,
+    paddingBottom: 16,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   saveButton: {
