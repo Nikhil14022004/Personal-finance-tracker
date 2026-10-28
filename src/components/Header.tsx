@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFinance } from '../context/FinanceContext';
 
@@ -17,9 +18,19 @@ export const Header: React.FC<HeaderProps> = ({
   onRightAction,
 }) => {
   const { colors, theme, toggleTheme } = useFinance();
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.surface, borderBottomColor: colors.cardBorder }]}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: colors.surface,
+          borderBottomColor: colors.cardBorder,
+          paddingTop: Math.max(insets.top, 12) + 6,
+        },
+      ]}
+    >
       <View style={styles.textContainer}>
         <Text style={[styles.title, { color: colors.textPrimary }]}>{title}</Text>
         {subtitle ? (
@@ -58,8 +69,7 @@ export const Header: React.FC<HeaderProps> = ({
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 16,
+    paddingBottom: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -91,4 +101,3 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 });
-

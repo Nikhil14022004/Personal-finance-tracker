@@ -9,9 +9,9 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PaymentMethod, Transaction, TransactionType } from '../types';
 import { useFinance } from '../context/FinanceContext';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, PAYMENT_METHODS } from '../constants/categories';
@@ -29,6 +29,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
   initialTransaction,
 }) => {
   const { colors, currency, addTransaction, updateTransaction } = useFinance();
+  const insets = useSafeAreaInsets();
 
   const [type, setType] = useState<TransactionType>('expense');
   const [amount, setAmount] = useState<string>('');
@@ -39,10 +40,8 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
 
-  // Categories list depends on type
   const availableCategories = type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
 
-  // Sync state when editing or opening
   useEffect(() => {
     if (initialTransaction) {
       setType(initialTransaction.type);
@@ -63,12 +62,20 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
     setSuccessMessage('');
   }, [initialTransaction, visible]);
 
-  // Keep category valid when type switches
   const handleTypeChange = (newType: TransactionType) => {
     setType(newType);
     const newCategories = newType === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
     setCategory(newCategories[0].name);
     setErrorMessage('');
+  };
+
+  const setYesterday = () => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    setDate(`${year}-${month}-${day}`);
   };
 
   const handleSave = async () => {
@@ -117,34 +124,64 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
       );
       setTimeout(() => {
         onClose();
-      }, 700);
+      }, 500);
     } else {
       setErrorMessage('Failed to save transaction. Please try again.');
     }
   };
 
+  const isWeb = Platform.OS === 'web';
+
   return (
-    <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
+    <Modal visible={visible} animationType={isWeb ? 'fade' : 'slide'} transparent={true} onRequestClose={onClose}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.overlay}
+        style={[
+          styles.overlay,
+          {
+            justifyContent: isWeb ? 'center' : 'flex-end',
+            padding: isWeb ? 16 : 0,
+          },
+        ]}
       >
-        <View style={[styles.modalCard, { backgroundColor: colors.surface }]}>
-          {/* Header */}
+        <View
+          style={[
+            styles.modalCard,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.cardBorder,
+              borderBottomLeftRadius: isWeb ? 24 : 0,
+              borderBottomRightRadius: isWeb ? 24 : 0,
+            },
+          ]}
+        >
+          {/* 1. FIXED HEADER */}
           <View style={[styles.modalHeader, { borderBottomColor: colors.cardBorder }]}>
-            <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
-              {initialTransaction ? 'Edit Transaction' : 'Add Transaction'}
-            </Text>
+            <View>
+              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
+                {initialTransaction ? 'Edit Transaction' : 'Add Transaction'}
+              </Text>
+              <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>
+                {type === 'expense' ? 'Track your expenses' : 'Record incoming money'}
+              </Text>
+            </View>
             <TouchableOpacity
               onPress={onClose}
               style={[styles.closeBtn, { backgroundColor: colors.surfaceSubtle }]}
+              activeOpacity={0.7}
             >
               <Ionicons name="close" size={20} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-            {/* Feedback Notifications */}
+          {/* 2. SCROLLABLE FORM CONTENT */}
+          <ScrollView
+            style={styles.scrollArea}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Feedback Banners */}
             {errorMessage ? (
               <View style={[styles.alertBox, { backgroundColor: colors.expenseLight }]}>
                 <Ionicons name="alert-circle-outline" size={16} color={colors.expense} />
@@ -159,7 +196,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
               </View>
             ) : null}
 
-            {/* Type Selector (Income vs Expense) */}
+            {/* Type Selector (Segmented Tabs) */}
             <View style={[styles.typeToggleContainer, { backgroundColor: colors.surfaceSubtle }]}>
               <TouchableOpacity
                 style={[
@@ -167,6 +204,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                   type === 'expense' && [styles.typeTabActive, { backgroundColor: colors.expense }],
                 ]}
                 onPress={() => handleTypeChange('expense')}
+                activeOpacity={0.8}
               >
                 <Ionicons
                   name="arrow-up-circle-outline"
@@ -189,6 +227,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                   type === 'income' && [styles.typeTabActive, { backgroundColor: colors.accent }],
                 ]}
                 onPress={() => handleTypeChange('income')}
+                activeOpacity={0.8}
               >
                 <Ionicons
                   name="arrow-down-circle-outline"
@@ -231,19 +270,15 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                     setAmount(val);
                     if (errorMessage) setErrorMessage('');
                   }}
-                  autoFocus={!initialTransaction}
+                  autoFocus={!initialTransaction && !isWeb}
                 />
               </View>
             </View>
 
-            {/* Category Selector */}
+            {/* Category Selector (Responsive Wrap Grid) */}
             <View style={styles.inputGroup}>
               <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Category</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.categoryScroll}
-              >
+              <View style={styles.categoryGrid}>
                 {availableCategories.map((cat) => {
                   const isSelected = category === cat.name;
                   return (
@@ -257,10 +292,11 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                         },
                       ]}
                       onPress={() => setCategory(cat.name)}
+                      activeOpacity={0.7}
                     >
                       <Ionicons
                         name={cat.icon as keyof typeof Ionicons.glyphMap}
-                        size={16}
+                        size={15}
                         color={isSelected ? '#ffffff' : colors.textPrimary}
                       />
                       <Text
@@ -274,7 +310,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                     </TouchableOpacity>
                   );
                 })}
-              </ScrollView>
+              </View>
             </View>
 
             {/* Date Input */}
@@ -283,12 +319,22 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                 <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
                   Date (YYYY-MM-DD)
                 </Text>
-                <TouchableOpacity
-                  onPress={() => setDate(getTodayDateString())}
-                  style={styles.todayBtn}
-                >
-                  <Text style={[styles.todayBtnText, { color: colors.info }]}>Set Today</Text>
-                </TouchableOpacity>
+                <View style={styles.quickDateRow}>
+                  <TouchableOpacity
+                    onPress={() => setDate(getTodayDateString())}
+                    style={[styles.quickDateBtn, { backgroundColor: colors.surfaceSubtle }]}
+                  >
+                    <Text style={[styles.quickDateText, { color: colors.info }]}>Today</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={setYesterday}
+                    style={[styles.quickDateBtn, { backgroundColor: colors.surfaceSubtle }]}
+                  >
+                    <Text style={[styles.quickDateText, { color: colors.textSecondary }]}>
+                      Yesterday
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
               <View
                 style={[
@@ -329,6 +375,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                         },
                       ]}
                       onPress={() => setPaymentMethod(method)}
+                      activeOpacity={0.7}
                     >
                       <Text
                         style={[
@@ -361,15 +408,26 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                 <Ionicons name="document-text-outline" size={18} color={colors.textSecondary} />
                 <TextInput
                   style={[styles.textInput, { color: colors.textPrimary }]}
-                  placeholder="e.g. Grocery items, Flight ticket"
+                  placeholder="e.g. Weekly Groceries, Freelance invoice"
                   placeholderTextColor={colors.textMuted}
                   value={note}
                   onChangeText={setNote}
                 />
               </View>
             </View>
+          </ScrollView>
 
-            {/* Save Button */}
+          {/* 3. FIXED BOTTOM ACTION BAR (STICKY, NEVER CUT OFF) */}
+          <View
+            style={[
+              styles.modalFooter,
+              {
+                backgroundColor: colors.surface,
+                borderTopColor: colors.cardBorder,
+                paddingBottom: Platform.OS === 'ios' ? Math.max(insets.bottom, 16) : 16,
+              },
+            ]}
+          >
             <TouchableOpacity
               style={[
                 styles.saveButton,
@@ -383,7 +441,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
                 {initialTransaction ? 'Update Transaction' : 'Save Transaction'}
               </Text>
             </TouchableOpacity>
-          </ScrollView>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -393,26 +451,40 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    alignItems: 'center',
   },
   modalCard: {
+    width: '100%',
+    maxWidth: 480,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
+    borderWidth: StyleSheet.hairlineWidth,
     maxHeight: '90%',
-    paddingBottom: 24,
+    flexDirection: 'column',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 10,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 18,
-    borderBottomWidth: 1,
+    paddingVertical: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
+  },
+  modalSubtitle: {
+    fontSize: 12,
+    marginTop: 2,
+    fontWeight: '500',
   },
   closeBtn: {
     width: 32,
@@ -421,8 +493,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  scrollArea: {
+    flexGrow: 1,
+    flexShrink: 1,
+  },
   scrollContent: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 24,
     gap: 16,
   },
   alertBox: {
@@ -471,16 +549,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   inputLabel: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
   },
-  todayBtn: {
-    paddingVertical: 2,
+  quickDateRow: {
+    flexDirection: 'row',
+    gap: 6,
   },
-  todayBtnText: {
-    fontSize: 12,
+  quickDateBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  quickDateText: {
+    fontSize: 11,
     fontWeight: '600',
   },
   amountInputWrapper: {
@@ -489,35 +573,35 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     paddingHorizontal: 16,
-    height: 56,
+    height: 54,
   },
   currencyPrefix: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
     marginRight: 8,
   },
   amountInput: {
     flex: 1,
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
     height: '100%',
   },
-  categoryScroll: {
+  categoryGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
-    paddingVertical: 4,
   },
   categoryChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
     borderWidth: 1,
   },
   categoryChipText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
   },
   textInputWrapper: {
@@ -526,7 +610,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     paddingHorizontal: 14,
-    height: 48,
+    height: 46,
     gap: 10,
   },
   textInput: {
@@ -541,22 +625,26 @@ const styles = StyleSheet.create({
   },
   paymentChip: {
     paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
     borderWidth: 1,
   },
   paymentChipText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
+  },
+  modalFooter: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   saveButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 52,
-    borderRadius: 16,
+    height: 50,
+    borderRadius: 14,
     gap: 8,
-    marginTop: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
@@ -565,8 +653,7 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
   },
 });
-
